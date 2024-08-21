@@ -6,10 +6,7 @@ Scraper is a web scraping tool designed to extract structured data from websites
 - [Getting Started](#getting-started)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
-- [Usage](#usage)
-- [Folder Structure](#folder-structure)
-- [Contributing](#contributing)
-- [License](#license)
+
 
 ## Getting Started
 
