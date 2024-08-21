@@ -32,15 +32,18 @@ To install Python, you can refer to the [official Python documentation](https://
 
 2. Create and activate a virtual environment:
 
+   ```bash
     python3 -m venv venv
     source venv/bin/activate  # Activate the virtual enviroment
 
 3. Install the required dependencies:
 
+   ```bash
     pip install -r requirements.txt
 
 4. Run locally
 
+   ```bash
     python3 manage.py runserver
 
 
@@ -54,4 +57,5 @@ To install Python, you can refer to the [official Python documentation](https://
 
 2. Use docker compose
 
+   ```bash
     docker compose -f docker-compose-dev.yml up
