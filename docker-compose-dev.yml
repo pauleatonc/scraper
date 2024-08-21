@@ -1,0 +1,32 @@
+services:
+  db:
+    image: postgres:14
+    environment:
+      - POSTGRES_DB=${DB_NAME_DEV}
+      - POSTGRES_USER=${DB_USER_DEV}
+      - POSTGRES_PASSWORD=${DB_PASSWORD_DEV}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+      - ./pg_config:/etc/postgresql
+    env_file:
+      - .env
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: bash -c "python manage.py migrate && python manage.py collectstatic --no-input && gunicorn scraper.wsgi:application --bind 0.0.0.0:8000"
+    volumes:
+      - .:/app
+      - ./staticfiles:/app/staticfiles
+    depends_on:
+      - db
+    env_file:
+      - .env
+    environment:
+      - DJANGO_SETTINGS_MODULE=scraper.settings.dev
+    ports:
+      - "8000:8000"
+
+volumes:
+  postgres_data:
