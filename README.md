@@ -47,7 +47,7 @@ To install Python, you can refer to the [official Python documentation](https://
     python3 manage.py runserver
 
 
-## Start with Docker for easyer run.
+## Start with Docker for easier run.
 
 1. Clone the repository:
 
