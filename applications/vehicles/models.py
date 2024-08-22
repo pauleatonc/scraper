@@ -3,6 +3,7 @@ from django.db import models
 class Vehicle(models.Model):
     # ID del anuncio y datos principales
     listing_id = models.CharField(max_length=20, unique=True)  # CP-AD-8379942    
+    title = models.CharField(max_length=255, blank=True, null=True)  # Título completo extraído del div
     price = models.BigIntegerField()  # 7,780,000 (Precio en CLP)    
     # Datos adicionales del vehículo
     odometer = models.CharField(max_length=50, blank=True, null=True)  # 136,769 km
