@@ -1,5 +1,5 @@
 from django.core.management.base import BaseCommand
-from scraper.services.vehicles_scraping import scrape_general_data
+from applications.scraper.services.vehicles_scraping import scrape_general_data
 
 class Command(BaseCommand):
     help = 'Realiza scraping general de vehículos'
