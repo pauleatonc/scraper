@@ -1,3 +1,4 @@
+from fake_useragent import UserAgent
 from selenium import webdriver
 from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.firefox.options import Options
@@ -8,13 +9,24 @@ from applications.vehicles.models import Vehicle, SellerType, BodyStyle, Brand, 
 
 # Configura Selenium para usar el navegador Firefox
 def init_driver():
+     # Crear una instancia de UserAgent para obtener agentes aleatorios
+    ua = UserAgent()
+
+    # Configuración de las opciones de Firefox
     firefox_options = Options()
     firefox_options.add_argument("--headless")  # Ejecutar en modo headless
     firefox_options.add_argument("--no-sandbox")  # Evitar sandbox
     firefox_options.add_argument("--disable-gpu")
     firefox_options.add_argument("--disable-dev-shm-usage")  # Evitar problemas con memoria compartida
 
+    # Añadir el User-Agent rotativo a las opciones de Firefox
+    user_agent = ua.random  # Obtener un User-Agent aleatorio
+    firefox_options.set_preference("general.useragent.override", user_agent)
+
+    # Inicializar el WebDriver de Firefox con las opciones
     driver = webdriver.Firefox(service=Service("/usr/local/bin/geckodriver"), options=firefox_options)
+    
+    print(f"User-Agent utilizado: {user_agent}")  # Imprimir el User-Agent para depuración
     return driver
 
 
