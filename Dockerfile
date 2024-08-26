@@ -14,10 +14,19 @@ RUN apt-get update \
     gcc \
     postgresql \
     libpq-dev \
+    wget \
+    curl \
+    firefox-esr \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --upgrade pip
+# Descargar e instalar Geckodriver (compatible con Firefox)
+RUN GECKODRIVER_VERSION=`curl -sS https://api.github.com/repos/mozilla/geckodriver/releases/latest | grep "tag_name" | cut -d '"' -f 4` \
+    && wget -O /tmp/geckodriver.tar.gz https://github.com/mozilla/geckodriver/releases/download/$GECKODRIVER_VERSION/geckodriver-$GECKODRIVER_VERSION-linux64.tar.gz \
+    && tar -xzf /tmp/geckodriver.tar.gz -C /usr/local/bin/ \
+    && rm /tmp/geckodriver.tar.gz
+
 # Instala Cython
+RUN pip install --upgrade pip
 RUN pip install --no-cache-dir cython
 
 
