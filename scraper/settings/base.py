@@ -25,6 +25,7 @@ DJANGO_APPS = [
 
 LOCAL_APPS = [
     'applications.scraper',
+    'applications.vehicles',
 ]
 
 THIRD_PARTY_APPS = [
