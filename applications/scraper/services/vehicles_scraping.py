@@ -1,4 +1,5 @@
 from fake_useragent import UserAgent
+import random
 from selenium import webdriver
 from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.firefox.options import Options
@@ -7,9 +8,33 @@ import time
 import requests
 from applications.vehicles.models import Vehicle, SellerType, BodyStyle, Brand, VehicleModel, Location, Year, Color, EngineCapacity, Comuna
 
-# Configura Selenium para usar el navegador Firefox
+# Lista de proxies en formato IP:PORT (o IP:PORT:USERNAME:PASSWORD si es necesario)
+proxies = [
+    "51.254.69.243:3128",
+    "81.171.24.199:3128",
+    "176.31.200.104:3128",
+    "83.77.118.53:17171",
+    "163.172.182.164:3128",
+    "163.172.168.124:3128",
+    "164.68.105.235:3128",
+    "5.199.171.227:3128",
+    "93.171.164.251:8080",
+    "212.112.97.27:3128",
+    "51.68.207.81:80",
+    "91.211.245.176:8080",
+    "84.201.254.47:3128",
+    "95.156.82.35:3128",
+    "185.118.141.254:808",
+    "217.113.122.142:3128",
+    "188.100.212.208:21129",
+    "83.77.118.53:17171",
+    "83.79.50.233:64527",
+]
+
+
+# Configuración de Selenium para usar el navegador Firefox
 def init_driver():
-     # Crear una instancia de UserAgent para obtener agentes aleatorios
+    # Crear una instancia de UserAgent para obtener agentes aleatorios
     ua = UserAgent()
 
     # Configuración de las opciones de Firefox
@@ -19,14 +44,28 @@ def init_driver():
     firefox_options.add_argument("--disable-gpu")
     firefox_options.add_argument("--disable-dev-shm-usage")  # Evitar problemas con memoria compartida
 
-    # Añadir el User-Agent rotativo a las opciones de Firefox
-    user_agent = ua.random  # Obtener un User-Agent aleatorio
+    # Añadir User-Agent rotativo
+    user_agent = ua.random
     firefox_options.set_preference("general.useragent.override", user_agent)
+
+    # Elegir un proxy aleatorio de la lista
+    proxy = random.choice(proxies)
+    print(f"Usando el proxy: {proxy}")  # Imprimir el proxy para depuración
+    print(f"User-Agent utilizado: {user_agent}")  # Imprimir el User-Agent para depuración
+
+    # Configurar el proxy en las preferencias de Firefox
+    firefox_options.set_preference("network.proxy.type", 1)
+    firefox_options.set_preference("network.proxy.http", proxy.split(':')[0])
+    firefox_options.set_preference("network.proxy.http_port", int(proxy.split(':')[1]))
+    firefox_options.set_preference("network.proxy.ssl", proxy.split(':')[0])
+    firefox_options.set_preference("network.proxy.ssl_port", int(proxy.split(':')[1]))
+    firefox_options.set_preference("network.proxy.socks", proxy.split(':')[0])
+    firefox_options.set_preference("network.proxy.socks_port", int(proxy.split(':')[1]))
+
 
     # Inicializar el WebDriver de Firefox con las opciones
     driver = webdriver.Firefox(service=Service("/usr/local/bin/geckodriver"), options=firefox_options)
     
-    print(f"User-Agent utilizado: {user_agent}")  # Imprimir el User-Agent para depuración
     return driver
 
 
