@@ -4,4 +4,5 @@ from . import views
 urlpatterns = [
     path('scrape-general/', views.start_general_scraping, name='start_general_scraping'),
     path('scrape-details/', views.start_detail_scraping, name='start_detail_scraping'),
+    path('generate-json/', views.start_generate_json, name='generate_json'),
 ]

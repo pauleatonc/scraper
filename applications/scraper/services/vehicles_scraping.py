@@ -137,110 +137,93 @@ def scrape_general_data():
 
                 print(f"Procesando vehículo {listing_id}: {title}, {make} {model}, {price} CLP")
 
-                # Verifica si ya existe el vehículo para evitar duplicados
-                if not Vehicle.objects.filter(listing_id=listing_id).exists():
-                    print(f"Vehículo {listing_id} no existe en la base de datos, creando...")
+                # Verifica si ya existe el vehículo para actualizar o crear
+                vehicle, created = Vehicle.objects.update_or_create(
+                    listing_id=listing_id,
+                    defaults={
+                        'title': title,
+                        'price': int(price),
+                        'listing_url': url,
+                        'detail_url': detail_url,
+                        'image_urls': images,
+                        'full_description': f"{make} {model}"
+                    }
+                )
 
-                    # Crear el vehículo
-                    vehicle = Vehicle.objects.create(
-                        listing_id=listing_id,
-                        title=title,
-                        price=int(price),
-                        listing_url=url,
-                        detail_url=detail_url,
-                        image_urls=images,
-                        full_description=f"{make} {model}"
-                    )
-
-                    print(f"Vehículo {vehicle.listing_id} creado con éxito en la base de datos.")
-
-                    # Asocia los datos a los otros modelos relacionados
-                    SellerType.objects.create(vehicle=vehicle, type=seller_type)
-                    BodyStyle.objects.create(vehicle=vehicle, style=body_style)
-                    Brand.objects.create(vehicle=vehicle, name=make)
-                    VehicleModel.objects.create(vehicle=vehicle, name=model)
-                    Location.objects.create(vehicle=vehicle, location=location)
-
-                    print(f"Vehículo {vehicle.listing_id} - {vehicle.title} guardado correctamente.")
+                if created:
+                    print(f"Vehículo {vehicle.listing_id} creado con éxito.")
                 else:
-                    print(f"Vehículo {listing_id} ya existe en la base de datos, saltando...")
+                    print(f"Vehículo {vehicle.listing_id} actualizado con éxito.")
+
+                # Asocia o actualiza los datos a los otros modelos relacionados
+                SellerType.objects.update_or_create(vehicle=vehicle, defaults={'type': seller_type})
+                BodyStyle.objects.update_or_create(vehicle=vehicle, defaults={'style': body_style})
+                Brand.objects.update_or_create(vehicle=vehicle, defaults={'name': make})
+                VehicleModel.objects.update_or_create(vehicle=vehicle, defaults={'name': model})
+                Location.objects.update_or_create(vehicle=vehicle, defaults={'location': location})
 
             driver.quit()
         else:
             print(f"No se pudo cargar la página {page_num + 1} después de intentar con todos los proxies disponibles.")
             break
 
-    print("Scraping finalizado.")
+    print("Scraping general finalizado.")
+
     
 def scrape_detail_data():
     vehicles = Vehicle.objects.all()  # Obtener todos los vehículos
+    proxies = get_proxies()  # Obtener la lista de proxies
 
-    driver = init_driver()  # Inicializa Selenium WebDriver
+    if not proxies:
+        print("No hay proxies válidos disponibles.")
+        return
 
     for vehicle in vehicles:
-        # Verificar si ya se extrajo algún detalle usando el related_name definido
         if vehicle.full_description and not hasattr(vehicle, 'color'):  # Verificar si el vehículo ya tiene detalles
-            try:
-                driver.get(vehicle.detail_url)
-                time.sleep(2)  # Asegurarse de dar tiempo para que la página se cargue completamente
+            success = False
+            while not success and proxies:  # Reintentar con diferentes proxies hasta tener éxito o agotar la lista
+                proxy = random.choice(proxies)  # Seleccionar un proxy aleatorio
+                driver = init_driver(proxy)  # Inicializar el WebDriver con el proxy seleccionado
+                driver.set_page_load_timeout(10)
 
-                soup = BeautifulSoup(driver.page_source, 'html.parser')
+                try:
+                    driver.get(vehicle.detail_url)
+                    time.sleep(2)  # Asegurarse de dar tiempo para que la página se cargue completamente
 
-                full_description = soup.find('div', class_='features-item-value-vehculo')
-                color = soup.find('div', class_='features-item-value-color')
-                engine_capacity = soup.find('div', class_='features-item-value-litros-motor')
-                comuna = soup.find('div', class_='features-item-value-comuna')
+                    soup = BeautifulSoup(driver.page_source, 'html.parser')
 
-                if full_description:
-                    full_description = full_description.get_text().strip()
-                else:
-                    full_description = vehicle.full_description
+                    # Extraer detalles del vehículo
+                    full_description = soup.find('div', class_='features-item-value-vehculo')
+                    color = soup.find('div', class_='features-item-value-color')
+                    engine_capacity = soup.find('div', class_='features-item-value-litros-motor')
+                    comuna = soup.find('div', class_='features-item-value-comuna')
 
-                if color:
-                    color = color.get_text().strip()
-                else:
-                    color = None
+                    # Actualizar detalles del vehículo si existen nuevos datos
+                    if full_description:
+                        vehicle.full_description = full_description.get_text().strip()
 
-                if engine_capacity:
-                    engine_capacity = engine_capacity.get_text().strip()
-                else:
-                    engine_capacity = None
+                    vehicle.save()  # Actualizar el vehículo con los nuevos datos
 
-                if comuna:
-                    comuna = comuna.get_text().strip()
-                else:
-                    comuna = None
+                    # Actualizar o crear las relaciones
+                    if color:
+                        Color.objects.update_or_create(vehicle=vehicle, defaults={'color': color.get_text().strip()})
+                    if engine_capacity:
+                        try:
+                            engine_capacity_value = float(engine_capacity.get_text().strip())
+                            EngineCapacity.objects.update_or_create(vehicle=vehicle, defaults={'capacity': engine_capacity_value})
+                        except ValueError:
+                            print(f"Error al convertir engine_capacity para {vehicle.listing_id}")
+                    if comuna:
+                        Comuna.objects.update_or_create(vehicle=vehicle, defaults={'comuna': comuna.get_text().strip()})
 
-                if full_description:
-                    try:
-                        year = int(full_description.split()[0])  # Extraer el año desde la primera parte del texto
-                    except (ValueError, IndexError):
-                        year = None
-                else:
-                    year = None
+                    print(f"Detalles del vehículo {vehicle.listing_id} actualizados.")
+                    success = True  # Si se completa con éxito, salir del bucle
+                except Exception as e:
+                    print(f"Error al procesar los detalles del vehículo {vehicle.listing_id} con el proxy {proxy}: {e}")
+                    driver.quit()
+                    proxies.remove(proxy)  # Remover el proxy fallido de la lista
+                    continue
 
-                vehicle.full_description = full_description
-                vehicle.save()
+            driver.quit()  # Cerrar el driver después de terminar con cada vehículo
 
-                if year:
-                    Year.objects.get_or_create(vehicle=vehicle, year=year)
-
-                if color:
-                    Color.objects.get_or_create(vehicle=vehicle, color=color)
-
-                if engine_capacity:
-                    try:
-                        engine_capacity_value = float(engine_capacity)  # Convertir a decimal o float
-                        EngineCapacity.objects.get_or_create(vehicle=vehicle, capacity=engine_capacity_value)
-                    except ValueError:
-                        print(f"Error al convertir engine_capacity para {vehicle.listing_id}: {engine_capacity}")
-
-                if comuna:
-                    Comuna.objects.get_or_create(vehicle=vehicle, comuna=comuna)
-
-                print(f"Detalles del vehículo {vehicle.listing_id} actualizados.")
-            
-            except Exception as e:
-                print(f"Error al procesar los detalles del vehículo {vehicle.listing_id}: {e}")
-
-    driver.quit()  # Cerrar el driver después de terminar
+    print("Scraping de detalles finalizado.")

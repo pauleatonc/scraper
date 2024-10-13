@@ -106,3 +106,11 @@ class EngineCapacity(models.Model):
 
     def __str__(self):
         return str(self.capacity)
+
+#Guarda un registro de los JSON generados.
+class VehicleJSONRecord(models.Model):
+    filename = models.CharField(max_length=255)
+    generated_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"JSON generado el {self.generated_at} con archivo {self.filename}"
