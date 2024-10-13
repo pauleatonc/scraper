@@ -31,8 +31,8 @@ DATABASES = {
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = '/static/'
-STATIC_ROOT = '/staticfiles'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = '/app/staticfiles/'
+# STATICFILES_DIRS = [BASE_DIR / 'static']
 
 # Media files
 # Defines the base URL and directory to serve user uploaded files during development

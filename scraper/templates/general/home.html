@@ -1,15 +1,30 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scraping Dashboard</title>
-</head>
-<body>
-    <h1>Scraping Dashboard</h1>
-    <form method="POST">
-        {% csrf_token %}
-        <button type="submit" name="scrape_general">Iniciar Scrape General</button>
-    </form>
-</body>
-</html>
+{% extends 'general/base.html' %}
+
+{% block content %}
+    <div class="d-flex flex-column align-items-center mt-5">
+        <h1 class="mb-4">Scraping Dashboard</h1>
+
+        {% if messages %}
+            <div class="alert alert-success w-50" role="alert">
+                {{ messages }}
+            </div>
+        {% endif %}
+        
+        <form method="POST" class="w-50">
+            {% csrf_token %}
+            
+            <!-- Mensaje antes del primer botón -->
+            <p class="text-center">Scrap para la información general</p>
+            <p class="text-center text-muted">Esto saca la información general de la página de búsqueda, como el nombre, ID, precio, URL de detalle y lo pone en una tabla.</p>
+            <button type="submit" name="scrape_general" class="btn btn-primary btn-lg w-100 mb-3">Iniciar Scrape General</button>
+            
+            <!-- Mensaje antes del segundo botón -->
+            <p class="text-center">Scrap para el JSON de detalle</p>
+            <p class="text-center text-muted">Con el ID del producto y la URL se revisa la página de detalle y se extraen los datos relevantes en un JSON.</p>
+            <button type="submit" name="scrape_detail" class="btn btn-secondary btn-lg w-100 mb-3">Iniciar Scrape Detalle</button>
+        </form>
+
+        <!-- Botón para ir al Admin de Django -->
+        <a href="{% url 'admin:index' %}" class="btn btn-dark btn-lg w-50 mt-4">Ir al Admin de Django</a>
+    </div>
+{% endblock content %}
