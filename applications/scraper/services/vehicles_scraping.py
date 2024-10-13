@@ -1,4 +1,6 @@
 from fake_useragent import UserAgent
+from django.conf import settings 
+import os
 import random
 from selenium import webdriver
 from selenium.webdriver.firefox.service import Service
@@ -10,15 +12,33 @@ from applications.vehicles.models import Vehicle, SellerType, BodyStyle, Brand, 
 
 
 # Función para obtener la lista de proxies desde ProxyScrape
+#def get_proxies():
+#    url = "https://api.proxyscrape.com/v3/free-proxy-list/get?request=displayproxies&proxy_format=protocolipport&format=text&anonymity=elite"
+#    response = requests.get(url)
+#    proxies = response.text.splitlines()
+#    # Simplemente verifica si hay un ':' en la cadena
+#    valid_proxies = [proxy for proxy in proxies if ':' in proxy]
+#    print(f"Proxies obtenidos: {valid_proxies}")  # Imprime la lista de proxies obtenidos
+#    return valid_proxies
+
 def get_proxies():
-    url = "https://api.proxyscrape.com/v3/free-proxy-list/get?request=displayproxies&proxy_format=protocolipport&format=text&anonymity=elite"
-    response = requests.get(url)
-    proxies = response.text.splitlines()
-    # Simplemente verifica si hay un ':' en la cadena
+    # Define la ruta al archivo de proxies
+    file_path = os.path.join('/app/proxyscrape_premium_http_proxies.txt')
+
+    # Verifica si el archivo existe
+    if not os.path.exists(file_path):
+        print(f"El archivo {file_path} no existe.")
+        return []
+
+    # Lee el archivo y obtiene los proxies
+    with open(file_path, 'r') as file:
+        proxies = file.read().splitlines()
+
+    # Verifica si la cadena contiene ':' para validar los proxies
     valid_proxies = [proxy for proxy in proxies if ':' in proxy]
     print(f"Proxies obtenidos: {valid_proxies}")  # Imprime la lista de proxies obtenidos
     return valid_proxies
-
+    
 
 def init_driver(proxy=None):
     # Crear una instancia de UserAgent para obtener agentes aleatorios
@@ -36,6 +56,10 @@ def init_driver(proxy=None):
     firefox_options.set_preference("general.useragent.override", user_agent)
     
     if proxy:
+        # Si el proxy no tiene prefijo, asumimos que es HTTP
+        if not proxy.startswith("http://") and not proxy.startswith("https://") and not proxy.startswith("socks4://"):
+            proxy = f"http://{proxy}"
+
         # Determinar el tipo de proxy
         if proxy.startswith("http://") or proxy.startswith("https://"):
             proxy_type = 1  # HTTP Proxy
@@ -71,10 +95,11 @@ def init_driver(proxy=None):
     
     return driver
 
+
 def scrape_general_data():
     proxies = get_proxies()  # Obtener lista de proxies desde ProxyScrape
 
-    for page_num in range(15):  # Revisar las primeras 10 páginas
+    for page_num in range(2):  # Revisar las primeras X páginas ======================
         if not proxies:
             print("No hay proxies válidos disponibles.")
             break

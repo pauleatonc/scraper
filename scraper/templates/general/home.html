@@ -30,12 +30,15 @@
                 a los otros JSON generados podrá mostrar los cambios sufridos por cada elemento en el tiempo. El JSON final se encuentra en la carpeta 
                 respectiva en la raiz del proyecto.
             </p>
-            <button type="submit" name="generate_json" class="btn btn-success btn-lg w-100">Generar JSON</button>
+            <button type="submit" name="generate_json" class="btn btn-success btn-lg w-100 mb-3">Generar JSON</button>
+
+            <!-- Botón para ir al Admin de Django -->
+            <p class="text-center">Administrar data</p>
+            <p class="text-center text-muted">Administra los modelos desde el administrador de Django. Primero debes contar con credenciales de Super Usuario.</p>
+            <a href="{% url 'admin:index' %}" class="btn btn-dark btn-lg w-100">Ir al Admin de Django</a>
 
         </form>
 
-        <!-- Botón para ir al Admin de Django -->
-        <p class="text-center text-muted">Administra los modelos desde el administrador de Django. Primero debes contar con credenciales de Super Usuario.</p>
-        <a href="{% url 'admin:index' %}" class="btn btn-dark btn-lg w-50 mt-4">Ir al Admin de Django</a>
+
     </div>
 {% endblock content %}
