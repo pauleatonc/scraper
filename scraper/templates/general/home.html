@@ -5,40 +5,59 @@
         <h1 class="mb-4">Scraping Dashboard</h1>
 
         {% if messages %}
-            <div class="alert alert-success w-50" role="alert">
-                {{ messages }}
-            </div>
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} w-50" role="alert">
+                    {{ message }}
+                </div>
+            {% endfor %}
         {% endif %}
         
-        <form method="POST" class="w-50">
+        <form method="POST" class="w-50 mb-5">
             {% csrf_token %}
             
-            <!-- Mensaje antes del primer botón -->
-            <p class="text-center">Scrap para la información general</p>
+            <!-- Escoger tipo de proxy -->
+            <div class="mb-3">
+                <label for="proxy-method" class="h5 text-center form-label">Selecciona el método de proxy</label>
+                <select id="proxy-method" name="proxy_method" class="form-select">
+                    <option value="none">Sin Proxy</option>
+                    <option value="api">Usar API para proxies</option>
+                    <option value="file">Usar Documento con proxies</option>
+                </select>
+                <p class="text-center text-muted">- La configuración de la API donde apuntar se debe hacer directamente sobre el código, en el método get_proxy_from_api.
+                </p>
+                <p class="text-center text-muted">- Al seleccionar la opción de "Usar documento con proxies", se lee el documento "proxies.txt" alojado en el root.
+                    Para cambiar su contenido solo se debe copiar y pegar, conservando el formato actual.
+                </p>
+            </div>
+
+            <!-- Botones de acciones -->
+            <p class="text-center h5">Scrap para la información general</p>
             <p class="text-center text-muted">Toma la información general de la página de búsqueda, como el nombre, ID, precio, URL de detalle y lo pone en una tabla.
                 En caso de existir el elemento, entonces actualiza sus datos.
             </p>
             <button type="submit" name="scrape_general" class="btn btn-primary btn-lg w-100 mb-3">Iniciar Scrape General</button>
             
-            <!-- Mensaje antes del segundo botón -->
-            <p class="text-center">Scrap para el JSON de detalle</p>
+            <p class="text-center h5">Scrap para el JSON de detalle</p>
             <p class="text-center text-muted">Con el ID del producto y la URL se revisa la página de detalle y se extraen y actualizan los datos relevantes.</p>
             <button type="submit" name="scrape_detail" class="btn btn-secondary btn-lg w-100 mb-3">Iniciar Scrape Detalle</button>
 
-            <p class="text-center">Generar JSON</p>
+            <p class="text-center h5">Generar JSON</p>
             <p class="text-center text-muted">Construye y almacena un JSON con la información recogida de cada elemento. Esto da una fotografía, que analizada junto
                 a los otros JSON generados podrá mostrar los cambios sufridos por cada elemento en el tiempo. El JSON final se encuentra en la carpeta 
-                respectiva en la raiz del proyecto.
+                respectiva en la raíz del proyecto.
             </p>
             <button type="submit" name="generate_json" class="btn btn-success btn-lg w-100 mb-3">Generar JSON</button>
 
-            <!-- Botón para ir al Admin de Django -->
-            <p class="text-center">Administrar data</p>
-            <p class="text-center text-muted">Administra los modelos desde el administrador de Django. Primero debes contar con credenciales de Super Usuario.</p>
-            <a href="{% url 'admin:index' %}" class="btn btn-dark btn-lg w-100">Ir al Admin de Django</a>
+            <!-- Botones de navegación -->
+            <!-- <p class="text-center h5">Visualizar data</p>
+            <p class="text-center text-muted">Utiliza las herramientas de Metabase para visualizar data y construir gráficos. Requiere configuración.</p>
+            <a href="http://localhost:3000" class="btn btn-info btn-lg w-100 mb-4">Ir a Metabase</a> -->
+
+            <p class="text-center h5">Administrar BD</p>
+            <p class="text-center text-muted">Administra los modelos desde el administrador de Django. 
+                Primero debes contar con credenciales de Super Usuario ingresando al contenedor y escribiendo "python manage.py createsuperuser".</p>
+            <a href="{% url 'admin:index' %}" class="btn btn-dark btn-lg w-100 mb-5">Ir al Admin de Django</a>
 
         </form>
-
-
     </div>
 {% endblock content %}
