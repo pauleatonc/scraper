@@ -3,8 +3,8 @@ from django.conf import settings
 import os
 import random
 from selenium import webdriver
-from selenium.webdriver.firefox.service import Service
-from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 import time
 import requests
@@ -12,140 +12,109 @@ from applications.vehicles.models import Vehicle, SellerType, BodyStyle, Brand, 
 
 
 # Función para obtener la lista de proxies desde ProxyScrape
-#def get_proxies():
-#    url = "https://api.proxyscrape.com/v3/free-proxy-list/get?request=displayproxies&proxy_format=protocolipport&format=text&anonymity=elite"
-#    response = requests.get(url)
-#    proxies = response.text.splitlines()
-#    # Simplemente verifica si hay un ':' en la cadena
-#    valid_proxies = [proxy for proxy in proxies if ':' in proxy]
-#    print(f"Proxies obtenidos: {valid_proxies}")  # Imprime la lista de proxies obtenidos
-#    return valid_proxies
+def get_proxies(proxy_method='none'):
 
-def get_proxies():
-    # Define la ruta al archivo de proxies
-    file_path = os.path.join('/app/proxyscrape_premium_http_proxies.txt')
-
-    # Verifica si el archivo existe
-    if not os.path.exists(file_path):
-        print(f"El archivo {file_path} no existe.")
-        return []
-
-    # Lee el archivo y obtiene los proxies
-    with open(file_path, 'r') as file:
-        proxies = file.read().splitlines()
-
-    # Verifica si la cadena contiene ':' para validar los proxies
-    valid_proxies = [proxy for proxy in proxies if ':' in proxy]
-    print(f"Proxies obtenidos: {valid_proxies}")  # Imprime la lista de proxies obtenidos
-    return valid_proxies
-    
-
-def init_driver(proxy=None):
-    # Crear una instancia de UserAgent para obtener agentes aleatorios
-    ua = UserAgent()
-
-    # Configuración de las opciones de Firefox
-    firefox_options = Options()
-    firefox_options.add_argument("--headless")  # Ejecutar en modo headless
-    firefox_options.add_argument("--no-sandbox")  # Evitar sandbox
-    firefox_options.add_argument("--disable-gpu")
-    firefox_options.add_argument("--disable-dev-shm-usage")  # Evitar problemas con memoria compartida
-
-    # Añadir User-Agent rotativo
-    user_agent = ua.random
-    firefox_options.set_preference("general.useragent.override", user_agent)
-    
-    if proxy:
-        # Si el proxy no tiene prefijo, asumimos que es HTTP
-        if not proxy.startswith("http://") and not proxy.startswith("https://") and not proxy.startswith("socks4://"):
-            proxy = f"http://{proxy}"
-
-        # Determinar el tipo de proxy
-        if proxy.startswith("http://") or proxy.startswith("https://"):
-            proxy_type = 1  # HTTP Proxy
-            proxy = proxy.replace("http://", "").replace("https://", "")
-        elif proxy.startswith("socks4://"):
-            proxy_type = 2  # SOCKS4 Proxy
-            proxy = proxy.replace("socks4://", "")
-        else:
-            raise ValueError(f"Tipo de proxy no soportado: {proxy}")
-
+    if proxy_method == 'api':
+        url = "https://api.proxyscrape.com/v3/free-proxy-list/get?request=displayproxies&proxy_format=protocolipport&format=text&anonymity=elite"
         try:
-            proxy_host, proxy_port = proxy.split(':')
-            proxy_port = int(proxy_port)
-        except ValueError:
-            raise ValueError(f"Formato de proxy no válido: {proxy}")
+            response = requests.get(url)
+            response.raise_for_status()
+            proxies = response.text.splitlines()
+            valid_proxies = [proxy for proxy in proxies if ':' in proxy]
+            print(f"Proxies obtenidos de la API: {valid_proxies}")
+            return valid_proxies if valid_proxies else None
+        except requests.exceptions.RequestException as e:
+            print(f"Error al obtener proxies de la API: {e}")
+            return None
 
-        print(f"Usando el proxy: {proxy_host}:{proxy_port} ({'HTTP' if proxy_type == 1 else 'SOCKS4'})")
-        print(f"User-Agent utilizado: {user_agent}")  # Imprimir el User-Agent para depuración
+    elif proxy_method == 'file':
+        file_path = os.path.join('/app/proxies.txt')
+        if not os.path.exists(file_path):
+            print(f"El archivo {file_path} no existe.")
+            return None
 
-        # Configurar el proxy en las preferencias de Firefox
-        firefox_options.set_preference("network.proxy.type", proxy_type)
-        firefox_options.set_preference("network.proxy.http", proxy_host)
-        firefox_options.set_preference("network.proxy.http_port", proxy_port)
-        firefox_options.set_preference("network.proxy.ssl", proxy_host)
-        firefox_options.set_preference("network.proxy.ssl_port", proxy_port)
+        with open(file_path, 'r') as file:
+            proxies = file.read().splitlines()
+            valid_proxies = [proxy for proxy in proxies if ':' in proxy]
+            print(f"Proxies obtenidos del archivo: {valid_proxies}")
+            return valid_proxies if valid_proxies else None
 
-        if proxy_type == 2:  # Configurar SOCKS Proxy
-            firefox_options.set_preference("network.proxy.socks", proxy_host)
-            firefox_options.set_preference("network.proxy.socks_port", proxy_port)
+    else:
+        print("No se usará proxy.")
+        return None    
 
-    # Inicializar el WebDriver de Firefox con las opciones
-    driver = webdriver.Firefox(service=Service("/usr/local/bin/geckodriver"), options=firefox_options)
-    
+
+def init_selenium_driver(proxy=None):
+    chrome_options = Options()
+    # Quitar el modo headless para ver la interacción
+    # chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("start-maximized")
+    chrome_options.add_argument("disable-infobars")
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36')
+
+    if proxy:
+        chrome_options.add_argument(f'--proxy-server={proxy}')
+        print(f"Usando proxy en Selenium: {proxy}")
+
+    driver = webdriver.Chrome(service=Service("/usr/bin/chromedriver"), options=chrome_options)
     return driver
 
+def scrape_general_data(proxies=None):
+    base_url = "https://www.chileautos.cl/vehiculos/autos-veh%C3%ADculo/"
 
-def scrape_general_data():
-    proxies = get_proxies()  # Obtener lista de proxies desde ProxyScrape
+    for page_num in range(1):  # Revisar las primeras X páginas
+        offset = page_num * 12
+        url = f"{base_url}?offset={offset}"
+        print(f"Scrapeando página {page_num + 1} con offset {offset}: {url}")
 
-    for page_num in range(2):  # Revisar las primeras X páginas ======================
-        if not proxies:
-            print("No hay proxies válidos disponibles.")
-            break
+        success = False  # Bandera para saber si se pudo cargar la página
 
-        success = False
-        while not success and proxies:  # Reintentar con diferentes proxies hasta tener éxito o agotar la lista
-            proxy = random.choice(proxies)  # Seleccionar un proxy aleatorio
-            driver = init_driver(proxy)  # Inicializar el WebDriver con el proxy seleccionado
-            driver.set_page_load_timeout(10)
-            base_url = "https://www.chileautos.cl/vehiculos/autos-veh%C3%ADculo/"
-            offset = page_num * 12  # El offset incrementa de 12 en 12 para cambiar de página
-            url = f"{base_url}?offset={offset}"
-            print(f"Scrapeando página {page_num + 1} con offset {offset}: {url}")
+        # Intentar cargar con Selenium y proxies si están disponibles
+        if proxies:
+            for proxy in proxies:
+                try:
+                    driver = init_selenium_driver(proxy=proxy)
+                    driver.get(url)
+                    time.sleep(5)  # Esperar a que se cargue la página
+                    soup = BeautifulSoup(driver.page_source, 'html.parser')
+                    print(soup.prettify())
+                    success = True
+                    print(f"Página cargada con éxito con el proxy {proxy}")
+                    driver.quit()  # Cerrar el driver si se carga con éxito
+                    break  # Salir del bucle si se carga con éxito
+                except Exception as e:
+                    print(f"Error al cargar la página {url} con Selenium y el proxy {proxy}: {e}")
+                    if driver:
+                        driver.quit()  # Cerrar el driver si hubo un error
+                    continue  # Intentar con el siguiente proxy
 
+        # Si no tuvo éxito con los proxies o no hay proxies, intentar sin proxy
+        if not success:
+            print("Intentando cargar la página sin proxy...")
             try:
-                # Cargar la página en Selenium
+                driver = init_selenium_driver()
                 driver.get(url)
-                time.sleep(5)  # Espera a que el contenido dinámico (JavaScript) se cargue
-                
-                # Verificar si la página se cargó correctamente
-                response = requests.get(url, proxies={"http": proxy, "https": proxy})
-                if response.status_code in [403, 429]:
-                    print(f"Proxy {proxy} bloqueado con código de respuesta {response.status_code}")
-                    driver.quit()
-                    proxies.remove(proxy)  # Remover proxy fallido de la lista
-                    continue
-                
-                success = True  # Si la página carga con éxito, salir del bucle
+                time.sleep(5)  # Esperar a que se cargue la página
+                soup = BeautifulSoup(driver.page_source, 'html.parser')
+                success = True
+                print("Página cargada con éxito sin proxy")
             except Exception as e:
-                print(f"Error al cargar la página {url} con el proxy {proxy}: {str(e)}")
-                driver.quit()
-                proxies.remove(proxy)  # Remover proxy fallido de la lista
-                continue
-        
-        if success:
-            # Usar BeautifulSoup para procesar el HTML
-            soup = BeautifulSoup(driver.page_source, 'html.parser')
-            print(f"Contenido HTML parseado con BeautifulSoup para la página {page_num + 1}")
+                print(f"Error al cargar la página {url} con Selenium sin proxy: {e}")
+            finally:
+                if driver:
+                    driver.quit()
 
+        if success:
             # Encuentra todos los listados de vehículos en la página
             vehicle_listings = soup.find_all('div', class_='listing-item')
             print(f"{len(vehicle_listings)} vehículos encontrados en la página {page_num + 1}")
 
             for listing in vehicle_listings:
                 listing_id = listing['data-webm-networkid']
-                title = listing.find('a', class_='js-encode-search').get_text().strip()  # Extraer el título
                 make = listing['data-webm-make']
                 model = listing['data-webm-model']
                 price = listing['data-webm-price']
@@ -153,71 +122,53 @@ def scrape_general_data():
                 body_style = listing['data-webm-bodystyle']
                 location = listing['data-webm-state']
                 detail_url = f"https://www.chileautos.cl{listing.find('a', class_='js-encode-search')['href']}"
-                
-                images = []
-                for img in listing.find_all('img'):
-                    img_url = img.get('src') or img.get('data-src')
-                    if img_url:
-                        images.append(img_url)
+                title = listing.find('a', class_='js-encode-search').get_text().strip()  # Extraer el título
+                images = [img['src'] for img in listing.find_all('img') if 'src' in img.attrs]  # Recolectar las imágenes
 
-                print(f"Procesando vehículo {listing_id}: {title}, {make} {model}, {price} CLP")
+                # Verifica si ya existe el vehículo para evitar duplicados
+                if not Vehicle.objects.filter(listing_id=listing_id).exists():
+                    # Crear el vehículo
+                    vehicle = Vehicle.objects.create(
+                        listing_id=listing_id,
+                        title=title,  # Guardar el título
+                        price=int(price),
+                        listing_url=url,
+                        detail_url=detail_url,
+                        image_urls=images,
+                        full_description=f"{make} {model}"
+                    )
 
-                # Verifica si ya existe el vehículo para actualizar o crear
-                vehicle, created = Vehicle.objects.update_or_create(
-                    listing_id=listing_id,
-                    defaults={
-                        'title': title,
-                        'price': int(price),
-                        'listing_url': url,
-                        'detail_url': detail_url,
-                        'image_urls': images,
-                        'full_description': f"{make} {model}"
-                    }
-                )
+                    # Asocia los datos a los otros modelos relacionados
+                    SellerType.objects.create(vehicle=vehicle, type=seller_type)
+                    BodyStyle.objects.create(vehicle=vehicle, style=body_style)
+                    Brand.objects.create(vehicle=vehicle, name=make)
+                    VehicleModel.objects.create(vehicle=vehicle, name=model)
+                    Location.objects.create(vehicle=vehicle, location=location)
 
-                if created:
-                    print(f"Vehículo {vehicle.listing_id} creado con éxito.")
-                else:
-                    print(f"Vehículo {vehicle.listing_id} actualizado con éxito.")
-
-                # Asocia o actualiza los datos a los otros modelos relacionados
-                SellerType.objects.update_or_create(vehicle=vehicle, defaults={'type': seller_type})
-                BodyStyle.objects.update_or_create(vehicle=vehicle, defaults={'style': body_style})
-                Brand.objects.update_or_create(vehicle=vehicle, defaults={'name': make})
-                VehicleModel.objects.update_or_create(vehicle=vehicle, defaults={'name': model})
-                Location.objects.update_or_create(vehicle=vehicle, defaults={'location': location})
-
-            driver.quit()
-        else:
-            print(f"No se pudo cargar la página {page_num + 1} después de intentar con todos los proxies disponibles.")
-            break
+                    print(f"Vehículo {vehicle.listing_id} - {vehicle.title} guardado.")
 
     print("Scraping general finalizado.")
 
     
-def scrape_detail_data():
+def scrape_detail_data(proxies=None):
     vehicles = Vehicle.objects.all()  # Obtener todos los vehículos
-    proxies = get_proxies()  # Obtener la lista de proxies
-
-    if not proxies:
-        print("No hay proxies válidos disponibles.")
-        return
 
     for vehicle in vehicles:
+        # Verificar si ya se extrajo algún detalle usando el related_name definido
         if vehicle.full_description and not hasattr(vehicle, 'color'):  # Verificar si el vehículo ya tiene detalles
             success = False
-            while not success and proxies:  # Reintentar con diferentes proxies hasta tener éxito o agotar la lista
-                proxy = random.choice(proxies)  # Seleccionar un proxy aleatorio
-                driver = init_driver(proxy)  # Inicializar el WebDriver con el proxy seleccionado
+            while not success:
+                # Inicializa el WebDriver con o sin proxy según la lista de proxies
+                proxy = random.choice(proxies) if proxies else None
+                driver = init_driver(proxy)  # Si proxy es None, no se usará un proxy
                 driver.set_page_load_timeout(10)
 
                 try:
                     driver.get(vehicle.detail_url)
-                    time.sleep(2)  # Asegurarse de dar tiempo para que la página se cargue completamente
+                    time.sleep(2)  # Espera a que la página se cargue completamente
 
+                    # Procesar el HTML
                     soup = BeautifulSoup(driver.page_source, 'html.parser')
-
-                    # Extraer detalles del vehículo
                     full_description = soup.find('div', class_='features-item-value-vehculo')
                     color = soup.find('div', class_='features-item-value-color')
                     engine_capacity = soup.find('div', class_='features-item-value-litros-motor')
@@ -244,11 +195,11 @@ def scrape_detail_data():
                     print(f"Detalles del vehículo {vehicle.listing_id} actualizados.")
                     success = True  # Si se completa con éxito, salir del bucle
                 except Exception as e:
-                    print(f"Error al procesar los detalles del vehículo {vehicle.listing_id} con el proxy {proxy}: {e}")
-                    driver.quit()
-                    proxies.remove(proxy)  # Remover el proxy fallido de la lista
+                    print(f"Error al procesar los detalles del vehículo {vehicle.listing_id}: {e}")
+                    if proxies:
+                        proxies.remove(proxy)  # Remover el proxy fallido de la lista si se usó un proxy
                     continue
-
-            driver.quit()  # Cerrar el driver después de terminar con cada vehículo
+                finally:
+                    driver.quit()  # Cerrar el WebDriver después de cada vehículo
 
     print("Scraping de detalles finalizado.")
