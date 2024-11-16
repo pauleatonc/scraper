@@ -46,8 +46,6 @@ def get_proxies(proxy_method='none'):
 
 def init_selenium_driver(proxy=None):
     chrome_options = Options()
-    # Quitar el modo headless para ver la interacción
-    # chrome_options.add_argument("--headless")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
@@ -66,33 +64,33 @@ def init_selenium_driver(proxy=None):
 def scrape_general_data(proxies=None):
     base_url = "https://www.chileautos.cl/vehiculos/autos-veh%C3%ADculo/"
 
-    for page_num in range(1):  # Revisar las primeras X páginas
+    for page_num in range(10):  # Revisar las primeras 10 páginas (ajusta el número según tus necesidades)
         offset = page_num * 12
         url = f"{base_url}?offset={offset}"
         print(f"Scrapeando página {page_num + 1} con offset {offset}: {url}")
 
         success = False  # Bandera para saber si se pudo cargar la página
+        driver = None  # Inicializar el driver fuera del bloque para poder cerrarlo más tarde
 
-        # Intentar cargar con Selenium y proxies si están disponibles
+        # Seleccionar un proxy al azar si hay proxies disponibles
         if proxies:
-            for proxy in proxies:
-                try:
-                    driver = init_selenium_driver(proxy=proxy)
-                    driver.get(url)
-                    time.sleep(5)  # Esperar a que se cargue la página
-                    soup = BeautifulSoup(driver.page_source, 'html.parser')
-                    print(soup.prettify())
-                    success = True
-                    print(f"Página cargada con éxito con el proxy {proxy}")
-                    driver.quit()  # Cerrar el driver si se carga con éxito
-                    break  # Salir del bucle si se carga con éxito
-                except Exception as e:
-                    print(f"Error al cargar la página {url} con Selenium y el proxy {proxy}: {e}")
-                    if driver:
-                        driver.quit()  # Cerrar el driver si hubo un error
-                    continue  # Intentar con el siguiente proxy
+            proxy = random.choice(proxies)
+            try:
+                print(f"Usando proxy en Selenium: {proxy}")
+                driver = init_selenium_driver(proxy=proxy)
+                driver.get(url)
+                time.sleep(5)  # Esperar a que se cargue la página
+                soup = BeautifulSoup(driver.page_source, 'html.parser')
+                print(soup.prettify())  # Imprimir el contenido cargado
+                success = True
+                print(f"Página cargada con éxito con el proxy {proxy}")
+            except Exception as e:
+                print(f"Error al cargar la página {url} con Selenium y el proxy {proxy}: {e}")
+            finally:
+                if driver:
+                    driver.quit()
 
-        # Si no tuvo éxito con los proxies o no hay proxies, intentar sin proxy
+        # Si no tuvo éxito con el proxy o no hay proxies, intentar sin proxy
         if not success:
             print("Intentando cargar la página sin proxy...")
             try:
@@ -157,16 +155,61 @@ def scrape_detail_data(proxies=None):
         # Verificar si ya se extrajo algún detalle usando el related_name definido
         if vehicle.full_description and not hasattr(vehicle, 'color'):  # Verificar si el vehículo ya tiene detalles
             success = False
-            while not success:
-                # Inicializa el WebDriver con o sin proxy según la lista de proxies
-                proxy = random.choice(proxies) if proxies else None
-                driver = init_driver(proxy)  # Si proxy es None, no se usará un proxy
-                driver.set_page_load_timeout(10)
 
+            # Intentar cargar con Selenium y proxies si están disponibles
+            if proxies:
+                for proxy in proxies:
+                    try:
+                        print(f"Usando proxy en Selenium: {proxy}")
+                        driver = init_selenium_driver(proxy=proxy)
+                        driver.set_page_load_timeout(10)
+                        driver.get(vehicle.detail_url)
+                        time.sleep(5)  # Espera a que la página se cargue completamente
+                        
+                        # Procesar el HTML
+                        soup = BeautifulSoup(driver.page_source, 'html.parser')
+                        full_description = soup.find('div', class_='features-item-value-vehculo')
+                        color = soup.find('div', class_='features-item-value-color')
+                        engine_capacity = soup.find('div', class_='features-item-value-litros-motor')
+                        comuna = soup.find('div', class_='features-item-value-comuna')
+
+                        # Actualizar detalles del vehículo si existen nuevos datos
+                        if full_description:
+                            vehicle.full_description = full_description.get_text().strip()
+
+                        vehicle.save()  # Actualizar el vehículo con los nuevos datos
+
+                        # Actualizar o crear las relaciones
+                        if color:
+                            Color.objects.update_or_create(vehicle=vehicle, defaults={'color': color.get_text().strip()})
+                        if engine_capacity:
+                            try:
+                                engine_capacity_value = float(engine_capacity.get_text().strip())
+                                EngineCapacity.objects.update_or_create(vehicle=vehicle, defaults={'capacity': engine_capacity_value})
+                            except ValueError:
+                                print(f"Error al convertir engine_capacity para {vehicle.listing_id}")
+                        if comuna:
+                            Comuna.objects.update_or_create(vehicle=vehicle, defaults={'comuna': comuna.get_text().strip()})
+
+                        print(f"Detalles del vehículo {vehicle.listing_id} actualizados.")
+                        success = True  # Si se completa con éxito, salir del bucle
+                        driver.quit()  # Cerrar el driver
+                        break  # Salir del bucle de proxies si tiene éxito
+                    except Exception as e:
+                        print(f"Error al procesar los detalles del vehículo {vehicle.listing_id} con el proxy {proxy}: {e}")
+                        if driver:
+                            driver.quit()
+                        continue  # Intentar con el siguiente proxy
+
+            # Si no tuvo éxito con los proxies o no hay proxies, intentar sin proxy
+            if not success:
+                print("Intentando cargar la página sin proxy...")
                 try:
+                    driver = init_selenium_driver()
+                    driver.set_page_load_timeout(10)
                     driver.get(vehicle.detail_url)
-                    time.sleep(2)  # Espera a que la página se cargue completamente
-
+                    time.sleep(5)  # Espera a que la página se cargue completamente
+                    
                     # Procesar el HTML
                     soup = BeautifulSoup(driver.page_source, 'html.parser')
                     full_description = soup.find('div', class_='features-item-value-vehculo')
@@ -195,11 +238,9 @@ def scrape_detail_data(proxies=None):
                     print(f"Detalles del vehículo {vehicle.listing_id} actualizados.")
                     success = True  # Si se completa con éxito, salir del bucle
                 except Exception as e:
-                    print(f"Error al procesar los detalles del vehículo {vehicle.listing_id}: {e}")
-                    if proxies:
-                        proxies.remove(proxy)  # Remover el proxy fallido de la lista si se usó un proxy
-                    continue
+                    print(f"Error al procesar los detalles del vehículo {vehicle.listing_id} sin proxy: {e}")
                 finally:
-                    driver.quit()  # Cerrar el WebDriver después de cada vehículo
+                    if driver:
+                        driver.quit()  # Cerrar el WebDriver después de cada vehículo
 
     print("Scraping de detalles finalizado.")
